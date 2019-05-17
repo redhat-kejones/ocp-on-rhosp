@@ -1,0 +1,61 @@
+---
+- name: Add private node records
+  ipa_host:
+    fqdn: "{{ (hostvars[item]['ansible_hostname'] + openshift_openstack_private_hostname_suffix + '.' + openshift_openstack_full_dns_domain) }}"
+    description: "{{ (hostvars[item]['ansible_hostname'] + openshift_openstack_private_hostname_suffix + '.' + openshift_openstack_full_dns_domain) }}"
+    ip_address: "{{ hostvars[item]['private_v4'] }}"
+    ns_host_location: openshift-cluster
+    ns_os_version: RHEL 7
+    ns_hardware_platform: OpenStack Instance
+    state: "{{ l_dns_record_state | default('present') }}"
+    ipa_host: "{{ openshift_openstack_external_nsupdate_keys['public']['server'] }}"
+    ipa_user: "{{ openshift_openstack_external_nsupdate_keys['public']['username'] }}"
+    ipa_pass: "{{ openshift_openstack_external_nsupdate_keys['public']['password'] }}"
+    update_dns: yes
+    validate_certs: false
+  with_items: "{{ l_openshift_openstack_dns_update_nodes }}"
+  when:
+    - openshift_openstack_external_nsupdate_keys['private'] is defined
+    - hostvars[item]['private_v4'] is defined
+    - hostvars[item]['private_v4'] is not none
+    - hostvars[item]['private_v4'] | string
+
+- name: Add public wildcard record
+  ipa_dnsrecord:
+    ipa_host: "{{ openshift_openstack_external_nsupdate_keys['public']['server'] }}"
+    ipa_user: "{{ openshift_openstack_external_nsupdate_keys['public']['username'] }}"
+    ipa_pass: "{{ openshift_openstack_external_nsupdate_keys['public']['password'] }}"
+    state: "{{ l_dns_record_state | default('present') }}"
+    zone_name: "{{ openshift_openstack_nsupdate_zone }}"
+    record_name: "{{ ('*.' + hostvars[groups.masters[0]].openshift_master_default_subdomain) | replace('.' + openshift_openstack_nsupdate_zone, '') }}"
+    record_type: "A"
+    record_value: "{{ hostvars[groups.lb[0]]['public_v4'] }}"
+    #record_ttl: 300 #NEEDED only if Ansible > 2.7
+    validate_certs: false
+  when:
+    - openshift_openstack_external_nsupdate_keys['public'] is defined
+    - groups.lb
+    - hostvars[groups.masters[0]].openshift_master_default_subdomain is defined
+#    - openshift_openstack_public_router_ip is defined
+#    - openshift_openstack_public_router_ip is not none
+#    - openshift_openstack_public_router_ip | string
+
+- name: Add public API record
+  ipa_dnsrecord:
+    ipa_host: "{{ openshift_openstack_external_nsupdate_keys['public']['server'] }}"
+    ipa_user: "{{ openshift_openstack_external_nsupdate_keys['public']['username'] }}"
+    ipa_pass: "{{ openshift_openstack_external_nsupdate_keys['public']['password'] }}"
+    state: "{{ l_dns_record_state | default('present') }}"
+    zone_name: "{{ openshift_openstack_nsupdate_zone }}"
+    record_name: "{{ hostvars[groups.masters[0]].openshift_master_cluster_public_hostname | replace('.' + openshift_openstack_nsupdate_zone, '') }}"
+    record_type: "A"
+    record_value: "{{ openshift_openstack_public_api_ip }}"
+    #record_ttl: 300 #NEEDED for Ansible > 2.7
+    validate_certs: false
+  when:
+    - openshift_openstack_external_nsupdate_keys['public'] is defined
+    - groups.masters
+    - hostvars[groups.masters[0]].openshift_master_cluster_public_hostname is defined
+    - openshift_openstack_public_api_ip is defined
+    - openshift_openstack_public_api_ip is not none
+    - openshift_openstack_public_api_ip | string

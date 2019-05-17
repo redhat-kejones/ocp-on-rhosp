@@ -1,0 +1,184 @@
+---
+## Openshift product versions and repos to install from
+#openshift_deployment_type: origin
+#openshift_repos_enable_testing: true
+openshift_deployment_type: openshift-enterprise
+openshift_release: v3.11
+
+oreg_auth_user: "*******|********"
+oreg_auth_password: "*******************************************8"
+
+# Default domain to access the applications running on OpenShift.
+# This uses the `openshift_openstack_clusterid`
+# and `openshift_openstack_public_dns_domain` values from all.yml.
+# It will be set to `apps.openshift.example.com` by default.
+# Feel free to change this to a value you prefer. It should be under the
+# domain the OpenShift cluster is configured, though.
+openshift_master_default_subdomain: "apps.{{ (openshift_openstack_clusterid|trim == '') | ternary(openshift_openstack_public_dns_domain, openshift_openstack_clusterid + '.' + openshift_openstack_public_dns_domain) }}"
+
+# Domain to access the OpenShift UI and API.
+# This uses the `openshift_openstack_clusterid`
+# and `openshift_openstack_public_dns_domain` values from all.yml.
+# It will be set to `console.openshift.example.com` by default.
+# Feel free to change this to a value you prefer. It should be under the
+# domain the OpenShift cluster is configured, though.
+openshift_master_cluster_public_hostname: "console.{{ (openshift_openstack_clusterid|trim == '') | ternary(openshift_openstack_public_dns_domain, openshift_openstack_clusterid + '.' + openshift_openstack_public_dns_domain) }}"
+
+
+openshift_hosted_router_wait: True
+openshift_hosted_registry_wait: True
+
+
+## Kuryr label configuration
+#kuryr_openstack_pool_driver: multi
+#
+#      - 'pod_vif=nested-vlan'
+openshift_node_groups:
+  - name: node-config-master-infra
+    labels:
+      - 'node-role.kubernetes.io/master=true'
+      - 'node-role.kubernetes.io/infra=true'
+    edits: []
+  - name: node-config-compute
+    labels:
+      - 'node-role.kubernetes.io/compute=true'
+    edits: []
+#  - name: node-config-infra
+#    labels:
+#      - 'node-role.kubernetes.io/master=true'
+#      - 'pod_vif=nested-vlan'
+#    edits: []
+
+
+## Openstack credentials
+openshift_cloudprovider_kind: openstack
+openshift_cloudprovider_openstack_auth_url: "{{ lookup('env','OS_AUTH_URL') }}"
+openshift_cloudprovider_openstack_username: "{{ lookup('env','OS_USERNAME') }}"
+openshift_cloudprovider_openstack_password: "{{ lookup('env','OS_PASSWORD') }}"
+openshift_cloudprovider_openstack_tenant_name: "{{ lookup('env','OS_TENANT_NAME') }}"
+openshift_cloudprovider_openstack_domain_name: default
+openshift_cloudprovider_openstack_region: "{{ lookup('env', 'OS_REGION_NAME') }}"
+openshift_cloudprovider_openstack_blockstorage_version: v2
+
+# Optionally specify a local openstack.conf
+#openshift_cloudprovider_openstack_conf_file: /path/to/openstack.conf
+
+## Use Cinder volume for Openshift registry:
+#openshift_hosted_registry_storage_kind: openstack
+#openshift_hosted_registry_storage_access_modes: ['ReadWriteOnce']
+#openshift_hosted_registry_storage_openstack_filesystem: xfs
+#openshift_hosted_registry_storage_volume_size: 80Gi
+
+## If you want a Cinder volume created automaticaly, uncomment this:
+#openshift_hosted_registry_storage_volume_name: registry
+
+## If you're using a Cinder volume you've set up yourself, uncomment this:
+#openshift_hosted_registry_storage_openstack_volumeID: e0ba2d73-d2f9-4514-a3b2-a0ced507fa05
+
+openshift_hosted_registry_storage_kind: object
+openshift_hosted_registry_storage_provider: swift
+openshift_hosted_registry_storage_swift_container: "openshift-registry"
+openshift_hosted_registry_storage_swift_authurl: "{{ lookup('env','OS_AUTH_URL') }}"
+openshift_hosted_registry_storage_swift_username: "{{ lookup('env','OS_USERNAME') }}"
+openshift_hosted_registry_storage_swift_password: "{{ lookup('env','OS_PASSWORD') }}"
+openshift_hosted_registry_storage_swift_tenant: "{{ lookup('env','OS_PROJECT_NAME') }}"
+openshift_hosted_registry_storage_swift_domain: "{{ lookup('env','OS_USER_DOMAIN_NAME') }}"
+openshift_hosted_registry_storage_swift_insecureskipverify: "true"
+
+# NOTE(shadower): the hostname check seems to always fail because the
+# host's floating IP address doesn't match the address received from
+# inside the host.
+openshift_hostname_check: false
+
+# For POCs or demo environments that are using smaller instances than
+# the official recommended values for RAM and DISK, uncomment the line below.
+#openshift_disable_check: disk_availability,memory_availability
+
+# NOTE(shadower): Always switch to root on the OSEv3 nodes.
+# openshift-ansible requires an explicit `become`.
+ansible_become: true
+
+# # Flannel networking
+#osm_cluster_network_cidr: 10.128.0.0/14
+#openshift_use_openshift_sdn: false
+#openshift_use_flannel: true
+#flannel_interface: eth1
+
+###ADDED
+os_sdn_network_plugin_name: 'redhat/openshift-ovs-networkpolicy'
+
+#openshift_master_identity_providers: [{'name': 'allow_all', 'login': 'true', 'challenge': 'true', 'kind': 'AllowAllPasswordIdentityProvider'}]
+openshift_master_identity_providers: [{'name': 'keystone', 'login': 'true', 'challenge': 'true', 'kind': 'KeystonePasswordIdentityProvider', 'mappingMethod': 'claim', 'domainName': 'default', 'url': '{{ lookup("env","OS_AUTH_URL") }}'}]
+
+# Manage openshift example imagestreams and templates during install and upgrade
+openshift_install_examples: true
+
+# default project node selector
+osm_default_node_selector: 'node-role.kubernetes.io/compute=true'
+
+# Enable cockpit
+osm_use_cockpit: true
+#
+# Set cockpit plugins
+osm_cockpit_plugins: ['cockpit-kubernetes']
+
+#Enable OpenShift Service Catalog
+openshift_enable_service_catalog: true
+
+# Enable template service broker (requires service catalog to be enabled, above)
+template_service_broker_install: true
+template_service_broker_selector: {'node-role.kubernetes.io/master': 'true'}
+
+# Enable ansible service broker
+ansible_service_broker_install: true
+ansible_service_broker_node_selector: {'node-role.kubernetes.io/master': 'true'}
+
+# OpenShift Router Options
+#
+# An OpenShift router will be created during install if there are
+# nodes present with labels matching the default router selector,
+# "region=infra". Set openshift_node_labels per node as needed in
+# order to label nodes.
+#
+# Example:
+# [nodes]
+# node.example.com openshift_node_labels="{'region': 'infra'}"
+#
+# Router selector (optional)
+# Router will only be created if nodes matching this label are present.
+# Default value: 'region=infra'
+openshift_hosted_router_selector: 'node-role.kubernetes.io/master=true'
+
+# Metrics deployment
+# See: https://docs.openshift.com/enterprise/latest/install_config/cluster_metrics.html
+#
+# By default metrics are not automatically deployed, set this to enable them
+openshift_metrics_install_metrics: true
+#
+# Storage Options
+openshift_metrics_cassandra_storage_type: dynamic
+#
+# Other Metrics Options -- Common items you may wish to reconfigure, for the complete
+# list of options please see roles/openshift_metrics/README.md
+openshift_metrics_cassandra_nodeselector: {'node-role.kubernetes.io/master': 'true'}
+openshift_metrics_hawkular_nodeselector: {'node-role.kubernetes.io/master': 'true'}
+openshift_metrics_heapster_nodeselector: {'node-role.kubernetes.io/master': 'true'}
+
+openshift_cluster_monitoring_operator_node_selector: {'node-role.kubernetes.io/master': 'true'}
+
+# Logging deployment
+#
+# Currently logging deployment is disabled by default, enable it by setting this
+openshift_logging_install_logging: false
+#
+# Logging storage config
+openshift_logging_es_pvc_dynamic: true
+#
+# Other Logging Options -- Common items you may wish to reconfigure, for the complete
+# list of options please see roles/openshift_logging/README.md
+openshift_logging_es_nodeselector: {'node-role.kubernetes.io/master': 'true'}
+openshift_logging_curator_nodeselector: {'node-role.kubernetes.io/master': 'true'}
+openshift_logging_kibana_nodeselector: {'node-role.kubernetes.io/master': 'true'}
+
+# Firewall configuration
+os_firewall_use_firewalld: true
