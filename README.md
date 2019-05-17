@@ -25,22 +25,6 @@ In order to control what libraries get installed and their dependencies, I'll us
 (ocp-on-rhosp) [root@ansible-host ocp-on-rhosp]# pip install jinja2
 ```
 
-Copy a few pieces from the openshift-ansible project
-```
-(ocp-on-rhosp) [root@ansible-host ocp-on-rhosp]# cp -a /usr/share/ansible/openshift-ansible/playbooks/openstack/sample-inventory ./inventory
-(ocp-on-rhosp) [root@ansible-host ocp-on-rhosp]# cp /usr/share/ansible/openshift-ansible/playbooks/openstack/ansible.cfg ./
-```
-
-Add any_errors_fatal setting to ansible.cfg [defaults] section
-```
-(ocp-on-rhosp) [root@ansible-host ocp-on-rhosp]# vi ansible.cfg
-...
-[defaults]
-...
-any_errors_fatal = true
-...
-```
-
 Make sure that you have an OpenStack rc file to auth to your OpenStack cloud. I got my operatorrc file from my undercloud. This authenticates me as operator user on my RHOSP 14 overcloud
 ```
 (ocp-on-rhosp) [root@ansible-host ocp-on-rhosp]# scp stack@192.168.0.5:operatorrc ./
